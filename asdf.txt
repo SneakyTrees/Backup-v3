@@ -1,0 +1,484 @@
+
+import java.util.*;
+import java.lang.*;
+import java.io.*;
+
+class Box {
+
+    boolean isPerfectBox;
+    float width;
+    float height;
+    float boxAngle;
+    Coordinates SW;
+    Coordinates SE;
+    Coordinates NW;
+    Coordinates NE;
+    Coordinates centerPoint;
+
+    public Box(float boxHeight, float boxWidth, float angle, Coordinates centerPnt) {
+        height = boxHeight;
+        width = boxWidth;
+        centerPoint = centerPnt;
+        
+        if (angle > 360.0f) {
+            boxAngle = Box.convertOverflowingAngle(angle);
+        } else if (angle < 0.0f) {
+            boxAngle = Box.convertNegativeAngle(angle);
+        } else {
+            boxAngle = angle;
+        }
+	
+        //Angle is correct here
+	float radialAngle = (float) (Math.atan((0.5f*width)/(0.5f*height))*(180.0f/Math.PI));
+        float radialAnglePos = Box.convertOverflowingAngle(boxAngle+radialAngle);
+	float radialAngleNegative = Box.convertNegativeAngle(boxAngle-radialAngle);
+        float radialDist = (0.5f*width) / (float) (Math.sin(Math.toRadians(radialAngle)));
+        
+        Coordinates genericPointOne = Box.getEndPointOfLine(radialDist, radialAnglePos, centerPoint);
+        Coordinates genericPointTwo = Box.getEndPointOfLine(radialDist, Box.convertOverflowingAngle(radialAnglePos+180), centerPoint);
+        Coordinates genericPointThree = Box.getEndPointOfLine(radialDist, radialAngleNegative, centerPoint);
+        Coordinates genericPointFour = Box.getEndPointOfLine(radialDist, Box.convertNegativeAngle(radialAngleNegative-180), centerPoint);
+        
+        
+        if((boxAngle > 0 && boxAngle < 90) || (boxAngle > 270 && boxAngle < 360)){
+            NW = genericPointFour;
+            SW = genericPointTwo;
+            NE = genericPointOne;
+            SE = genericPointThree;
+        }
+        else if(((boxAngle > 90) && (boxAngle != 180) && (boxAngle < 270))){
+            NW = genericPointOne;
+            SW = genericPointThree;
+            NE = genericPointFour;
+            SE = genericPointTwo;       
+        }
+        else{
+            isPerfectBox = true;
+            if(true){
+                
+            }
+        }
+        
+    }
+
+    public static Coordinates lineIntersectsPerfectLineAt(Coordinates startPoint, Coordinates endPoint, Coordinates perfLineStart, Coordinates perfLineEnd) {
+
+        /*
+         -Think about catching the invalid math (division by 0) exception or the 0 dimRatio and then handling the fact there's another perfect line
+         -Maybe a perfectLinesInterectAt() method?
+         */
+        boolean perfLineXWise = false;
+        float dimRatio = -124235432;
+        int directionalMult;
+        Coordinates testingPoint = new Coordinates();
+        float testDimCoordinate = 0;
+
+        if(startPoint.getX()-endPoint.getX() < 0.00000001){
+            return Box.perfLineIntersectsPerfLineAt(startPoint, endPoint, perfLineStart, perfLineEnd);
+        }
+        if(startPoint.getY()-endPoint.getY() < 0.0000001){
+            return Box.perfLineIntersectsPerfLineAt(startPoint, endPoint, perfLineStart, perfLineEnd);
+        }
+        
+        if (Math.abs(perfLineStart.getX() - perfLineEnd.getX()) < 0.00000000001) {
+            perfLineXWise = true;
+            dimRatio = (Math.abs(startPoint.getY() - endPoint.getY())) / (Math.abs(startPoint.getX() - endPoint.getX()));
+            testingPoint.setCoordinates(perfLineStart.getX(), perfLineStart.getX() * dimRatio);
+            testDimCoordinate = testingPoint.getY();
+        } else if (Math.abs(perfLineStart.getY() - perfLineEnd.getY()) < 0.00000000001) {
+            perfLineXWise = false;
+            dimRatio = (Math.abs(startPoint.getX() - endPoint.getX())) / (Math.abs(startPoint.getY() - endPoint.getY()));
+            testingPoint.setCoordinates(perfLineStart.getY() * dimRatio, perfLineStart.getY());
+            testDimCoordinate = testingPoint.getX();
+        } else {
+            //Line is not perfect, throw excptn to be made later
+            System.out.println("Line is not perfect, you fucking pleblord. git gucci pls");
+        }
+
+        //testingPoint.printCoordinates();
+        //System.out.println(dimRatio);
+        //Check distance to see if the testingPoint is too far away to be valid
+        if (Box.getDistanceBetween(startPoint, endPoint) <= Box.getDistanceBetween(startPoint, testingPoint)) {
+            return null;
+        }
+
+        float perfLineGreatestDim;
+        float perfLineLeastDim;
+        if (perfLineXWise) {
+            if (perfLineStart.getY() >= perfLineEnd.getY()) {
+                perfLineGreatestDim = perfLineStart.getY();
+                perfLineLeastDim = perfLineEnd.getY();
+            } else {
+                perfLineGreatestDim = perfLineEnd.getY();
+                perfLineLeastDim = perfLineStart.getY();
+            }
+        } else {
+            if (perfLineStart.getX() >= perfLineEnd.getX()) {
+                perfLineGreatestDim = perfLineStart.getX();
+                perfLineLeastDim = perfLineEnd.getX();
+            } else {
+                perfLineGreatestDim = perfLineEnd.getX();
+                perfLineLeastDim = perfLineStart.getX();
+            }
+        }
+
+        if (testDimCoordinate <= perfLineGreatestDim
+                && testDimCoordinate >= perfLineLeastDim) {
+            return testingPoint;
+        } else {
+            return null;
+        }
+    }
+    
+    public static Coordinates perfLineIntersectsPerfLineAt(Coordinates perfLineStartOne, Coordinates perfLineEndOne, Coordinates perfLineStartTwo, Coordinates perfLineEndTwo){
+        boolean oneXWise = Math.abs(perfLineStartOne.getX()-perfLineEndOne.getX()) < 0.0000001 ? true : false;
+        boolean twoXWise = Math.abs(perfLineStartTwo.getX())-perfLineEndTwo.getX() < 0.000001 ? true : false;
+        
+        if(oneXWise && twoXWise){
+            return (new Coordinates(perfLineStartOne.getX(), 0));
+        }
+        else if(!oneXWise && !twoXWise){
+            return (new Coordinates(0, perfLineStartOne.getY()));
+        }
+        else if(!oneXWise && twoXWise){
+            if(
+             (perfLineStartOne.getX() > perfLineStartTwo.getX() && perfLineEndOne.getX() < perfLineStartTwo.getX()) ||
+             (perfLineStartOne.getX() < perfLineStartTwo.getX() && perfLineEndOne.getX() > perfLineStartTwo.getX())
+            ){
+                return new Coordinates(perfLineStartTwo.getX(), perfLineStartOne.getY());
+            }
+            else{
+                return null;
+            }
+        }
+        else if(oneXWise && !twoXWise){
+            if(
+             (perfLineStartTwo.getX() > perfLineStartOne.getX() && perfLineEndTwo.getX() < perfLineStartOne.getX()) ||
+             (perfLineStartTwo.getX() < perfLineStartOne.getX() && perfLineEndTwo.getX() > perfLineStartOne.getX())
+            ){
+                return new Coordinates(perfLineStartOne.getX(), perfLineStartTwo.getY());
+            }
+            else{
+                return null;
+            }
+        }
+        else{
+            System.out.println("Inside perfLineIntersectsPerfLineAt meth, somethin done gone wrong bruh");
+            return null;
+        }
+    }
+
+    public static Coordinates getEndPointOfLine(float lineLength, float lineAngle, Coordinates startPoint) {
+        if (lineAngle > 360) {
+            lineAngle = Box.convertOverflowingAngle(lineAngle);
+        }
+        if (lineAngle < 0) {
+            lineAngle = Box.convertNegativeAngle(lineAngle);
+        }
+
+        int angleQuadrant = (int) Math.abs((lineAngle - (lineAngle % 90)) / 90);
+        float xOffset = (float) Math.abs(Math.cos(lineAngle * (Math.PI / 180)) * lineLength);
+        float yOffset = (float) Math.abs(Math.sin(lineAngle * (Math.PI / 180)) * lineLength);
+        
+        int angleMultX = 100000;
+        int angleMultY = 100000;
+        Coordinates endPoint = new Coordinates();
+        if (angleQuadrant == 0) {
+            angleMultX = 1;
+            angleMultY = 1;
+        } else if (angleQuadrant == 1) {
+            angleMultX = -1;
+            angleMultY = 1;
+        } else if (angleQuadrant == 2) {
+            angleMultX = -1;
+            angleMultY = -1;
+        } else if (angleQuadrant == 3) {
+            angleMultX = 1;
+            angleMultY = -1;
+        }
+
+        endPoint.setCoordinates(startPoint.getX() + xOffset * angleMultX, startPoint.getY() + yOffset * angleMultY);
+        return endPoint;
+    }
+
+    public Coordinates[] lineIntersectsPerfectBoxAtCoordinates(Coordinates startPoint, Coordinates endPoint) {
+        if (this.getIsPerfectBox()) {
+            System.out.println("lineIntersectsPerfectBoxAtCoordinates called on non-perfect box");
+        }
+
+        Coordinates[] intersectionPoints = new Coordinates[2];
+        Coordinates[] perfectBoxPairs = {this.getSW(), this.getNW(), this.getSE(), this.getNE(), this.getSW(), this.getSE(), this.getNW(), this.getNE()};
+        int intersectionPos = 0;
+
+        Coordinates currentIntersectionTestPoint;
+        for (int i = 0; i < 7; i += 2) {
+            currentIntersectionTestPoint = Box.lineIntersectsPerfectLineAt(startPoint, endPoint, perfectBoxPairs[i], perfectBoxPairs[i + 1]);
+            if (currentIntersectionTestPoint != null) {
+                intersectionPoints[intersectionPos] = currentIntersectionTestPoint;
+                intersectionPos++;
+            }
+        }
+        return intersectionPoints;
+    }
+
+    public static boolean anyPointsAreInPerfectBox(Coordinates[] testPoints, Coordinates cornerPointOne, Coordinates cornerPointTwo) {
+        //Initial non equality and shenanigans check
+        float greatestX;
+        float greatestY;
+        float leastX;
+        float leastY;
+        if (cornerPointOne.getX() > cornerPointTwo.getX()) {
+            greatestX = cornerPointOne.getX();
+            leastX = cornerPointTwo.getX();
+        } else {
+            greatestX = cornerPointTwo.getX();
+            leastX = cornerPointOne.getX();
+        }
+
+        if (cornerPointOne.getY() > cornerPointTwo.getY()) {
+            greatestY = cornerPointOne.getY();
+            leastY = cornerPointTwo.getY();
+        } else {
+            greatestY = cornerPointTwo.getY();
+            leastY = cornerPointOne.getY();
+        }
+
+        for (int i = 0; i < testPoints.length; i++) {
+            if (testPoints[i].getX() > leastX
+                    && testPoints[i].getX() < greatestX
+                    && testPoints[i].getY() > leastY
+                    && testPoints[i].getY() < greatestY) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+    
+    public static boolean pointIsInPerfectBox(Coordinates testPoint, Coordinates cornerPointOne, Coordinates cornerPointTwo) {
+        //Initial non equality and shenanigans check
+        float greatestX;
+        float greatestY;
+        float leastX;
+        float leastY;
+        if (cornerPointOne.getX() > cornerPointTwo.getX()) {
+            greatestX = cornerPointOne.getX();
+            leastX = cornerPointTwo.getX();
+        } else {
+            greatestX = cornerPointTwo.getX();
+            leastX = cornerPointOne.getX();
+        }
+
+        if (cornerPointOne.getY() > cornerPointTwo.getY()) {
+            greatestY = cornerPointOne.getY();
+            leastY = cornerPointTwo.getY();
+        } else {
+            greatestY = cornerPointTwo.getY();
+            leastY = cornerPointOne.getY();
+        }
+
+        if(
+         testPoint.getX() > leastX &&
+         testPoint.getX() < greatestX &&
+         testPoint.getY() > leastY &&
+         testPoint.getY() < greatestY
+        ){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
+    public static float getDistanceBetween(Coordinates pointOne, Coordinates pointTwo) {
+        float dist = (float) Math.sqrt(Box.squareFloat(pointOne.getX() - pointTwo.getX()) + Box.squareFloat(pointTwo.getY() - pointTwo.getY()));
+        return dist;
+    }
+
+    public void printCorners() {
+        System.out.println("(" + NW.getX() + ", " + NW.getY() + ")");
+        System.out.println("(" + SW.getX() + ", " + SW.getY() + ")");
+        System.out.println("(" + NE.getX() + ", " + NE.getY() + ")");
+        System.out.println("(" + SE.getX() + ", " + SE.getY() + ")");
+    }
+
+    public void printCornersForTesting() {
+        System.out.println(NW.getX() + "," + NW.getY());
+        System.out.println(SW.getX() + "," + SW.getY());
+        System.out.println(NE.getX() + "," + NE.getY());
+        System.out.println(SE.getX() + "," + SE.getY());
+    }
+
+    public static float squareFloat(float num) {
+        return num * num;
+    }
+
+    public static float convertOverflowingAngle(float angle) {
+        if (angle > 360.0f) {
+            angle = angle%360.0f;
+            return angle;
+        } 
+        else {
+            return angle;
+        }
+    }
+
+    public static float convertNegativeAngle(float angle) {
+        if (Math.abs(angle) * 1 != angle) {
+            if (Math.abs(angle) > 360) {
+                System.out.println(angle);
+                angle = Box.convertOverflowingAngle(Math.abs(angle));
+            }
+            angle = 360 - Math.abs(angle);
+            return angle;
+        } else {
+            return angle;
+        }
+    }
+
+    public boolean getIsPerfectBox() {
+        return isPerfectBox;
+    }
+
+    public Coordinates getNW() {
+        return NW;
+    }
+
+    public Coordinates getSW() {
+        return SW;
+    }
+
+    public Coordinates getNE() {
+        return NE;
+    }
+
+    public Coordinates getSE() {
+        return SE;
+    }
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+   
+    //Incomplete
+    public boolean anyPointsAreInBox(Coordinates startPoint, Coordinates ninetyDegreePoint, Coordinates endPoint, Coordinates[] testPoints) {
+        if (!(startPoint.getX() - ninetyDegreePoint.getX() < 0.000001)
+                || !(startPoint.getY() - ninetyDegreePoint.getY() < 0.000001)) {
+            System.out.println("nienteyDegreePoint isn;t at 90 deg, returning");
+            return false;
+        }
+
+        int angleMultX = startPoint.getX() > endPoint.getX() ? -1 : 1;
+        int angleMultY = startPoint.getY() > endPoint.getY() ? -1 : 1;
+        int innerMultX = angleMultX * -1;
+        int innerMultY = angleMultY;
+        float currentXDist = Math.abs(startPoint.getX() - endPoint.getX());
+        float currentYDist = Math.abs(startPoint.getY() - endPoint.getY());
+        float currentMult = 1;
+
+        int currentBoxNum;
+        Coordinates currentHypotenusePoint = new Coordinates();
+        Coordinates currentInnerPoint = new Coordinates();
+
+        for (int i = 1; i < 5; i++) {
+            currentMult /= 2;
+            currentBoxNum = (int) currentMult * 2;
+            currentXDist *= currentMult * angleMultX;
+            currentYDist *= currentMult * angleMultY;
+            currentHypotenusePoint.setCoordinates(startPoint.getX() + 2*currentXDist*angleMultX, startPoint.getY() + 2*currentYDist*angleMultY);
+            currentInnerPoint.setCoordinates(currentHypotenusePoint.getX() + 2*currentXDist*innerMultX, currentHypotenusePoint.getY() + 2*currentYDist*innerMultY);
+
+            for (int j = 0; j < currentBoxNum; j++) {
+                if(Box.anyPointsAreInPerfectBox(testPoints, currentHypotenusePoint, currentInnerPoint)){
+                    return true;
+                }
+                currentHypotenusePoint.setCoordinates(currentHypotenusePoint.getX() + 2 * currentXDist, currentHypotenusePoint.getY() + 2 * currentYDist);
+                currentInnerPoint.setCoordinates(currentHypotenusePoint.getX() + 2 * currentXDist * innerMultX, currentHypotenusePoint.getY() + currentYDist * innerMultY);
+            }
+        }
+
+        return false;
+    }
+
+    /*
+     public boolean checkCollisionWithBox(Box comparingBox) {
+     //Find if they are colliding some way else? faster? IDK
+     //Find the perfectBoxAroundComparing points here and their correspondingPoints
+     ArrayList<Coordinates> cornerPairs = new ArrayList<Coordinates>();
+     cornerPairs.add(this.getSW(), this.getNW(), this.getSE(), this.getNE(), this.getNW(), this.getNE(), this.getSW(), this.getSE());
+
+     Coordinates currentcurrentComparisonPointOne;
+     Coordinates currentcurrentComparisonPointTwo;
+     Coordinates intersectingPoints = new Coordinates[2];
+     Coordinates[] currentPairPoints = new Coordinates[2];
+
+     int angleMultX;
+     int angleMultY;
+     float xIncrement;
+     float yIncrement;
+     float currentX;
+     float currentY;
+     Coordinates[] testPointsOnLine = new Coordinates[128];
+
+     for (int i = 0; i > 8; i + 2) {
+     //Set the next pair of coordinates to be tested for itnersecting with the perfectBoxAroundComparing
+     currentPairPoints[0] = cornerPairs[i];
+     currentPairPoints[1] = cornerPairs[i + 1];
+
+     //Get how many points are intersecting and where they intersect at via this 2D array returned
+     intersectingPoints = perfectBoxAroundComparing.lineIntersectsPerfectBoxAtCoordinates(currentPairPoints[0], currentPairPoints[1]);
+
+     //No points along the line are intersecting the perfect box
+     if (intersectingPoints[0] == null && intersectingPoints[1] == null) {
+     //See if points are inside the perfect box itself
+     if (perfectBoxAroundComparing.anyPointsAreInPerfectBox(currentPairPoints[0], currentPairPoints[1])) {
+     currentComparisonPointOne = currentPairPoints[0];
+     currentComparisonPointTwo = currentPairPoints[1];
+     } //
+     else {
+     continue;
+     }
+     } //At least one point on the line intersects the perfectBox
+     else if (intersectingPoints[0] == null || intersectingPoints[1] == null) {
+     //Set to the non null intersection point
+     currentComparisonPointOne = intersctingPoints[0] == null ? intersectingPoints[1] : intersectingPoints[0];
+     if (perfectBoxAroundComparing.pointIsInPerfectBox(coordinatePairPoints[0]) {
+     currentComparisonPointTwo = coordinatePairPoints[0];
+     } else if (perfectBoxAroundComparing.pointIsInPerfectBox(coordinatePairPoints[1]) {
+     currentComparisonPointTwo = coordinatePairPoints[1];
+     } //Neither of the pair points is inside the perfectBoxAroundComparing and so there's no way it intersected comparingBox
+     else {
+     continue;
+     }
+     } //In this case, it's easy: just set comparisons to the two intersectionPoints
+     else if (intersectingPoints[0] != null && intersectingPoints[1] != null) {
+     currentComparisonPointOne = intersectingPoints[0];
+     currentComparisonPointTwo = intersectingPoints[1];
+     } else {
+     System.out.println("Failure at 41");
+     }
+
+            
+     If there are two outersecting lines that are in direct adjacency (ex. point one is between SW and NW and the other is SE and NE, 
+     coll has occurred
+             
+     //Shift these variable declaraionts to the very beginning of the inner loop
+     angleMultX = currentComparisonPointOne.getX() > currentComparisonPointTwo.getX() ? -1 : 1;
+     angleMultY = currentComparisonPointOne.getY() > currentComparisonPointTwo.getY() ? -1 : 1;
+     xIncrement = Math.abs(currentComparisonPointOne.getX() - currentComparisonPointTwo.getX() / 128) * angleMultX;
+     yIncrement = Math.abs(currentComparisonPointOne.getY() - currentComparisonPointTwo.getY() / 128) * angleMultY;
+     currentXCoord = currentComparisonPointOne.getX();
+     currentYCoord = currentComparisonPointOne.getY();
+     for (int j = 0; j < 127; j++) {
+     currentXCoord += xIncrement;
+     currentYCoord += yIncrement;
+     testPointsOnLine[i] = new Coordinates(currentXCoord, currentYCoord);
+     }
+
+     if (comparingBox.anyPointsAreInBox(testPointsOnLine)) {
+     return true;
+     } else {
+     continue;
+     }
+     }
+     }
+     */
+}
